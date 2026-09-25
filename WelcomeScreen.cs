@@ -1047,12 +1047,30 @@ namespace WeAreCars
             object sender,
             EventArgs e)
         {
-            MessageBox.Show(
-                "Login screen will be connected here next.",
-                "WeAreCars",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information
-            );
+            
+            // Ensure the transparent overlay is hidden/cleaned up before
+            // navigating away so it does not remain visible above the
+            // newly-opened LoginForm.
+            try
+            {
+                if (overlayForm != null && !overlayForm.IsDisposed)
+                {
+                    overlayForm.Hide();
+                    overlayForm.Dispose();
+                    overlayForm = null;
+                }
+            }
+            catch
+            {
+                // Ignore any overlay cleanup errors; proceed with navigation.
+            }
+
+            LoginForm targetForm = new LoginForm();
+
+            targetForm.Show();
+
+            // Hide the welcome screen (do not close the main message loop).
+            this.Hide();
         }
 
         /// <summary>
