@@ -15,6 +15,12 @@ namespace WeAreCars
         private Panel pnlLoginCard;
         private Label lblBrand;
         private Label lblLoginTitle;
+        private Label lblLoginSubtitle;
+        private TextBox txtUsername;
+        private TextBox txtPassword;                
+        private Label lblUsername;
+        private Label lblPassword;
+        
 
         // ====================================================
         // CONSTRUCTOR
@@ -35,6 +41,15 @@ namespace WeAreCars
 
             // Create the WeAreCars branding.
             CreateLoginBranding();
+
+            // Login Input Controls
+            CreateLoginInputs();
+
+            // Login Field Labels
+            CreateLoginLabels();
+
+            // Login Title
+            CreateLoginTitel();
 
             // Keep the login card correctly positioned
             // when the form changes size.
@@ -144,24 +159,24 @@ namespace WeAreCars
         {
             pnlLoginCard = new Panel
             {
-                Size = new Size(570, 630),
-                BackColor = Color.FromArgb(19, 29, 46),
+                Size = new Size(320, 420),
+
+                // Premium dark background
+                BackColor = Color.FromArgb(17, 25, 39),
+
                 BorderStyle = BorderStyle.None
             };
 
-            // Add the card to the main form.
+            // Add card to the main form
             this.Controls.Add(pnlLoginCard);
 
-            // Keep the card above the background.
+            // Keep card above background
             pnlLoginCard.BringToFront();
 
-            // Apply rounded corners to the card.
-            SetRoundedCorners(
-                pnlLoginCard,
-                18
-            );
+            // Rounded professional corners
+            SetRoundedCorners(pnlLoginCard, 24);
 
-            // Draw the subtle card border.
+            // Draw professional border and accent
             pnlLoginCard.Paint += LoginCard_Paint;
         }
 
@@ -204,11 +219,11 @@ namespace WeAreCars
 
                 Font = new Font(
                     "Segoe UI",
-                    19,
+                    16,
                     FontStyle.Bold
                 ),
 
-                Location = new Point(50, 42)
+                Location = new Point(85, 20)
             };
 
             // Add the brand to the login card.
@@ -283,69 +298,221 @@ namespace WeAreCars
         /// Draws the subtle border around the login card.
         /// </summary>
         private void LoginCard_Paint(
-            object sender,
-            PaintEventArgs e)
+     object sender,
+     PaintEventArgs e)
         {
-            using Pen borderPen =
-                new Pen(
-                    Color.FromArgb(42, 55, 75),
-                    1
-                );
-
             e.Graphics.SmoothingMode =
                 SmoothingMode.AntiAlias;
 
-            using GraphicsPath borderPath =
-                new GraphicsPath();
+            int radius = 24;
 
-            int radius = 18;
+            // -----------------------------
+            // Subtle outer border
+            // -----------------------------
 
-            // Top-left corner.
-            borderPath.AddArc(
-                0,
-                0,
-                radius,
-                radius,
-                180,
-                90
-            );
+            using (Pen borderPen = new Pen(
+                Color.FromArgb(55, 70, 95),
+                1))
+            {
+                using (GraphicsPath borderPath =
+                    new GraphicsPath())
+                {
+                    borderPath.AddArc(
+                        0,
+                        0,
+                        radius,
+                        radius,
+                        180,
+                        90);
 
-            // Top-right corner.
-            borderPath.AddArc(
-                pnlLoginCard.Width - radius - 1,
-                0,
-                radius,
-                radius,
-                270,
-                90
-            );
+                    borderPath.AddArc(
+                        pnlLoginCard.Width - radius - 1,
+                        0,
+                        radius,
+                        radius,
+                        270,
+                        90);
 
-            // Bottom-right corner.
-            borderPath.AddArc(
-                pnlLoginCard.Width - radius - 1,
-                pnlLoginCard.Height - radius - 1,
-                radius,
-                radius,
-                0,
-                90
-            );
+                    borderPath.AddArc(
+                        pnlLoginCard.Width - radius - 1,
+                        pnlLoginCard.Height - radius - 1,
+                        radius,
+                        radius,
+                        0,
+                        90);
 
-            // Bottom-left corner.
-            borderPath.AddArc(
-                0,
-                pnlLoginCard.Height - radius - 1,
-                radius,
-                radius,
-                90,
-                90
-            );
+                    borderPath.AddArc(
+                        0,
+                        pnlLoginCard.Height - radius - 1,
+                        radius,
+                        radius,
+                        90,
+                        90);
 
-            borderPath.CloseFigure();
+                    borderPath.CloseFigure();
 
-            e.Graphics.DrawPath(
-                borderPen,
-                borderPath
-            );
+                    e.Graphics.DrawPath(
+                        borderPen,
+                        borderPath);
+                }
+            }
+
+            // -----------------------------
+            // Accent line (positioned under the brand label)
+            // -----------------------------
+
+            using (Pen accentPen = new Pen(
+                Color.FromArgb(45, 170, 255),
+                3))
+            {
+                if (lblBrand != null)
+                {
+                    // Draw the accent line centered under the brand label.
+                    int lineWidth = 50;
+                    int startX = (pnlLoginCard.Width - lineWidth) / 2;
+                    int endX = startX + lineWidth;
+                    int y = lblBrand.Bottom + 12;
+
+                    e.Graphics.DrawLine(
+                        accentPen,
+                        startX,
+                        y,
+                        endX,
+                        y
+                        );
+                }
+                else
+                {
+                    // Fallback to original hard-coded position if lblBrand isn't available yet.
+                    int lineWidth = 50;
+                    int startX = (pnlLoginCard.Width - lineWidth) / 2;
+                    int endX = startX + lineWidth;
+                    e.Graphics.DrawLine(accentPen, startX, 60, endX, 60);
+                }
+            }
+        }
+               
+        // Login Inputs Controls
+
+        private void CreateLoginInputs()
+        {
+            // username textbox
+            txtUsername = new TextBox();
+            txtUsername.Name = "txtUsername";
+            txtUsername.Size = new Size(240, 35);
+            txtUsername.Location = new Point(40, 215);
+
+            // Password textbox
+            txtPassword = new TextBox();
+            txtPassword.Name = "txtPassword";
+            txtPassword.Size = new Size(240, 35);
+            txtPassword.Location = new Point(40, 285);
+            txtPassword.UseSystemPasswordChar = true;
+
+            // Add textboxes INSIDE the login card
+            pnlLoginCard.Controls.Add(txtUsername);
+            pnlLoginCard.Controls.Add(txtPassword);
+
+            // Make sure they appear above the other controls
+            txtUsername.BringToFront();
+            txtPassword.BringToFront();
+
+        }
+
+        // Login Fields label
+
+        private void CreateLoginLabels()
+        {
+            // Username label
+            lblUsername = new Label
+            {
+                Name = "lblUsername",
+                Text = "Username",
+                AutoSize = true,
+                Location = new Point(40, 190),
+                Font = new Font(
+                "Segoe UI",
+                10,
+                FontStyle.Regular
+                ),
+                ForeColor = Color.White,
+                BackColor = Color.Transparent 
+            };
+
+            // Password Label
+            lblPassword = new Label
+            {
+                Name = "lblPassword",
+                Text = "Password",
+                AutoSize = true,
+                Location = new Point(40, 260),
+                Font = new Font(
+                    "Segoe UI",
+                    10,
+                    FontStyle.Regular
+                    ),
+                ForeColor = Color.White,
+                BackColor = Color.Transparent
+            };
+
+            // Add label to the login card
+            pnlLoginCard.Controls.Add(lblUsername);
+            pnlLoginCard.Controls.Add(lblPassword);
+
+            // keep the label to the front
+            lblUsername.BringToFront();
+            lblPassword.BringToFront();
+
+        }
+
+        // Login Title and subtitle
+        private void CreateLoginTitel()
+        {
+            // Login Title 
+            lblLoginTitle = new Label
+            {
+                Name = "lblLoginTitle",
+                Text = "Staff Login",
+                AutoSize = true,
+                Location = new Point(60, 70),
+                Font = new Font(
+                     "Segoe UI",
+                    18,
+                    FontStyle.Bold
+                    ),
+                ForeColor = Color.White,
+                BackColor = Color.Transparent
+
+            };
+
+            // Login sub-title
+
+            lblLoginSubtitle = new Label
+            {
+                Name = "lblLoginSubtitle",
+                Text = "Sign in to access the WeAreCars management system.",
+                AutoSize = false,
+                Size = new Size(240, 60),
+                Location = new Point(40, 105),
+                Font = new Font(
+                    "Segoe UI",
+                    9,
+                    FontStyle.Regular
+                    ),
+                ForeColor = Color.White,
+                BackColor = Color.Transparent
+
+            };
+
+            // Add to the Card
+            pnlLoginCard.Controls.Add(lblLoginTitle);
+            pnlLoginCard.Controls.Add(lblLoginSubtitle);
+
+            // keep the label to the fron
+            lblLoginTitle.BringToFront();
+            lblLoginSubtitle.BringToFront();
+
+
         }
     }
 }
