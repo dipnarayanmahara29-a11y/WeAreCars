@@ -57,6 +57,7 @@
             picEndFrame.TabIndex = 1;
             picEndFrame.TabStop = false;
             picEndFrame.Visible = false;
+            picEndFrame.Click += picEndFrame_Click;
             // 
             // WelcomeScreen
             // 

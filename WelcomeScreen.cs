@@ -1047,7 +1047,7 @@ namespace WeAreCars
             object sender,
             EventArgs e)
         {
-            
+
             // Ensure the transparent overlay is hidden/cleaned up before
             // navigating away so it does not remain visible above the
             // newly-opened LoginForm.
@@ -1236,6 +1236,11 @@ namespace WeAreCars
             axWindowsMediaPlayer.Ctlcontrols.stop();
 
             base.OnFormClosed(e);
+        }
+
+        private void picEndFrame_Click(object sender, EventArgs e)
+        {
+
         }
     }
 }

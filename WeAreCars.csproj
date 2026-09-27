@@ -36,7 +36,6 @@
   <ItemGroup>
     <Folder Include="Models\" />
     <Folder Include="Forms\" />
-    <Folder Include="Services\" />
   </ItemGroup>
 
   <ItemGroup>
@@ -52,6 +51,10 @@
     <Content Include="Assets\Splash\WeAreCars_Splash_EndFrame.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
   </ItemGroup>
 
 </Project>
