@@ -357,6 +357,7 @@ namespace WeAreCars
 
             btnBack.FlatAppearance.MouseDownBackColor =
                 Color.Transparent;
+            btnBack.Click += BtnBack_Click;
 
 
             // Put button directly on the background.
@@ -365,6 +366,35 @@ namespace WeAreCars
             );
 
             btnBack.BringToFront();
+        }
+
+        // ====================================================
+        // Back Button function
+        // ====================================================
+
+        private void BtnBack_Click( object? sender, EventArgs e)
+        {
+            WelcomeScreen? welcomeScreen = null;
+
+            foreach (Form form in Application.OpenForms)
+            {
+                if (form is WelcomeScreen existingWelcomeScreen)
+                {
+                    welcomeScreen =
+                        existingWelcomeScreen;
+
+                    break;
+                }
+            }
+
+            if (welcomeScreen != null &&
+                !welcomeScreen.IsDisposed)
+            {
+                welcomeScreen.ReturnFromLogin();
+            }
+
+            // Completely close the LoginForm.
+            this.Close();
         }
 
 

@@ -1056,8 +1056,6 @@ namespace WeAreCars
                 if (overlayForm != null && !overlayForm.IsDisposed)
                 {
                     overlayForm.Hide();
-                    overlayForm.Dispose();
-                    overlayForm = null;
                 }
             }
             catch
@@ -1065,12 +1063,22 @@ namespace WeAreCars
                 // Ignore any overlay cleanup errors; proceed with navigation.
             }
 
-            LoginForm targetForm = new LoginForm();
+            // Create the LoginForm.
+            LoginForm targetForm =
+                new LoginForm();
 
+            // Hide the WelcomeScreen only after the
+            // LoginForm has actually been shown.
+            targetForm.Shown += (s, args) =>
+            {
+                this.Hide();
+            };
+
+            // Show the LoginForm.
             targetForm.Show();
 
-            // Hide the welcome screen (do not close the main message loop).
-            this.Hide();
+            targetForm.BringToFront();
+            targetForm.Activate();
         }
 
         /// <summary>
@@ -1096,6 +1104,22 @@ namespace WeAreCars
 
             // Close this welcome form; do not call Application.Exit to avoid terminating the whole process.
             this.Close();
+        }
+
+        public void ReturnFromLogin()
+        {
+            this.Show();
+
+            if (overlayForm != null &&
+                !overlayForm.IsDisposed)
+            {
+                overlayForm.Show(this);
+                overlayForm.BringToFront();
+                overlayForm.Activate();
+            }
+
+            this.BringToFront();
+            this.Activate();
         }
 
         /// <summary>
