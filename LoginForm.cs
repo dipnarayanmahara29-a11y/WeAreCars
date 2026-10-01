@@ -51,35 +51,44 @@ namespace WeAreCars
         {
             InitializeComponent();
 
-            // Configure form
-            ConfigureForm();
+            SuspendLayout();
 
-            // Create background
-            CreateBackground();
+            try
+            {
+                // Configure form
+                ConfigureForm();
 
-            // Create Back button only
-            CreateLeftOverlay();
+                // Create background
+                CreateBackground();
 
-            // Create login card
-            CreateLoginCard();
+                // Create Back button only
+                CreateLeftOverlay();
 
-            // Create branding
-            CreateLoginBranding();
+                // Create login card
+                CreateLoginCard();
 
-            // Create title and subtitle
-            CreateLoginTitel();
+                // Create branding
+                CreateLoginBranding();
 
-            // Create username/password labels
-            CreateLoginLabels();
+                // Create title and subtitle
+                CreateLoginTitel();
 
-            // Create sign-in button and extras
-            CreateSignInSection();
+                // Create username/password labels
+                CreateLoginLabels();
 
-            // Keep card positioned correctly
-            this.Resize += LoginForm_Resize;
+                // Create sign-in button and extras
+                CreateSignInSection();
 
-            // Position everything after form is displayed
-            this.Shown += LoginForm_Shown;
+                // Keep card positioned correctly
+                Resize += LoginForm_Resize;
+
+                // Position everything after form is displayed
+                Shown += LoginForm_Shown;
+            }
+            finally
+            {
+                ResumeLayout(false);
+            }
         }
 
 
@@ -92,6 +101,7 @@ namespace WeAreCars
             EventArgs e)
         {
         }
+
 
         private void picLoginBackground_Click(
             object? sender,
@@ -191,15 +201,37 @@ namespace WeAreCars
                 {
                     SessionService.Login(username);
 
-                    MessageBox.Show(
-                        "Login successful.",
-                        "WeAreCars",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Information
-                    );
+                    // ================================================
+                    // Create the main application form
+                    // ================================================
 
-                    // Dashboard navigation will be added
-                    // after authentication is confirmed.
+                    AppShell appShell = new AppShell();
+
+                    // Show App Shell FIRST - make it the main form
+                    appShell.Show();
+                    appShell.Focus();
+
+                    // ================================================
+                    // Close the forms that are no longer needed
+                    // ================================================
+
+                    // Find and hide the WelcomeScreen
+                    Form? welcomeScreen = null;
+
+                    foreach (Form form in Application.OpenForms)
+                    {
+                        if (form is WelcomeScreen existingWelcomeScreen)
+                        {
+                            welcomeScreen = existingWelcomeScreen;
+                            break;
+                        }
+                    }
+
+                    // Hide the welcome screen (don't close - keeps Application.Run() message loop alive)
+                    welcomeScreen?.Hide();
+
+                    // Hide this login form
+                    Hide();
                 }
                 else
                 {
@@ -215,11 +247,11 @@ namespace WeAreCars
                     txtPassword.SelectAll();
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 MessageBox.Show(
-                    "Unable to connect to the application database.\n\n" +
-                    ex.Message,
+                    "Unable to connect to the application database. " +
+                    "Please contact the system administrator.",
                     "WeAreCars",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error
@@ -234,25 +266,25 @@ namespace WeAreCars
 
         private void ConfigureForm()
         {
-            this.FormBorderStyle =
+            FormBorderStyle =
                 FormBorderStyle.None;
 
-            this.WindowState =
+            WindowState =
                 FormWindowState.Maximized;
 
-            this.StartPosition =
+            StartPosition =
                 FormStartPosition.CenterScreen;
 
-            this.BackColor =
+            BackColor =
                 Color.FromArgb(
                     11,
                     18,
                     32);
 
-            this.Text =
+            Text =
                 "WeAreCars - Staff Login";
 
-            this.DoubleBuffered = true;
+            DoubleBuffered = true;
         }
 
 
@@ -277,14 +309,16 @@ namespace WeAreCars
             if (File.Exists(backgroundPath))
             {
                 picLoginBackground.Image =
-                    Image.FromFile(backgroundPath);
+                    LoadImageWithoutFileLock(
+                        backgroundPath
+                    );
 
                 picLoginBackground.SizeMode =
                     PictureBoxSizeMode.Zoom;
             }
             else
             {
-                this.BackColor =
+                BackColor =
                     Color.FromArgb(
                         11,
                         18,
@@ -300,28 +334,50 @@ namespace WeAreCars
 
 
         // ====================================================
+        // IMAGE LOADING
+        // ====================================================
+
+        private Image LoadImageWithoutFileLock(
+            string imagePath)
+        {
+            using FileStream stream =
+                new FileStream(
+                    imagePath,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.Read
+                );
+
+            using Image sourceImage =
+                Image.FromStream(stream);
+
+            return new Bitmap(sourceImage);
+        }
+
+
+        // ====================================================
         // BACK BUTTON
         // ====================================================
 
         private void CreateLeftOverlay()
         {
-            // ====================================================
-            // BACK BUTTON
-            // ====================================================
-
             btnBack = new Button
             {
-                Name = "btnBack",
+                Name =
+                    "btnBack",
 
-                Text = "←  Back",
+                Text =
+                    "←  Back",
 
-                Size = new Size(
-                    100,
-                    38),
+                Size =
+                    new Size(
+                        100,
+                        38),
 
-                Location = new Point(
-                    25,
-                    20),
+                Location =
+                    new Point(
+                        25,
+                        20),
 
                 FlatStyle =
                     FlatStyle.Flat,
@@ -343,9 +399,11 @@ namespace WeAreCars
                 TextAlign =
                     ContentAlignment.MiddleLeft,
 
-                TabStop = false,
+                TabStop =
+                    false,
 
-                UseVisualStyleBackColor = false
+                UseVisualStyleBackColor =
+                    false
             };
 
 
@@ -357,7 +415,9 @@ namespace WeAreCars
 
             btnBack.FlatAppearance.MouseDownBackColor =
                 Color.Transparent;
-            btnBack.Click += BtnBack_Click;
+
+            btnBack.Click +=
+                BtnBack_Click;
 
 
             // Put button directly on the background.
@@ -368,13 +428,17 @@ namespace WeAreCars
             btnBack.BringToFront();
         }
 
+
         // ====================================================
-        // Back Button function
+        // BACK BUTTON FUNCTION
         // ====================================================
 
-        private void BtnBack_Click( object? sender, EventArgs e)
+        private void BtnBack_Click(
+            object? sender,
+            EventArgs e)
         {
             WelcomeScreen? welcomeScreen = null;
+
 
             foreach (Form form in Application.OpenForms)
             {
@@ -387,14 +451,16 @@ namespace WeAreCars
                 }
             }
 
+
             if (welcomeScreen != null &&
                 !welcomeScreen.IsDisposed)
             {
                 welcomeScreen.ReturnFromLogin();
             }
 
+
             // Completely close the LoginForm.
-            this.Close();
+            Close();
         }
 
 
@@ -410,11 +476,13 @@ namespace WeAreCars
 
             pnlLoginCard = new Panel
             {
-                Name = "pnlLoginCard",
+                Name =
+                    "pnlLoginCard",
 
-                Size = new Size(
-                    480,
-                    580),
+                Size =
+                    new Size(
+                        480,
+                        580),
 
                 BackColor =
                     Color.FromArgb(
@@ -427,466 +495,492 @@ namespace WeAreCars
             };
 
 
-            // Add card to form
-            this.Controls.Add(
+            // Add card to form.
+            Controls.Add(
                 pnlLoginCard
             );
 
-
-            // Put card above background
             pnlLoginCard.BringToFront();
 
 
-            // Rounded corners
-            SetRoundedCorners(
-                pnlLoginCard,
-                18
-            );
+            // Important:
+            // Suspend the card layout BEFORE adding children.
+            pnlLoginCard.SuspendLayout();
 
-
-            // Enable border and accent line
-            pnlLoginCard.Paint +=
-                LoginCard_Paint;
-
-
-            // ====================================================
-            // USERNAME INPUT PANEL
-            // ====================================================
-
-            pnlUsernameInput = new Panel
+            try
             {
-                Name = "pnlUsernameInput",
+                // Rounded corners.
+                SetRoundedCorners(
+                    pnlLoginCard,
+                    18
+                );
 
-                Size = new Size(
-                    360,
-                    45),
 
-                Location = new Point(
-                    60,
-                    210),
+                // Enable border and accent line.
+                pnlLoginCard.Paint +=
+                    LoginCard_Paint;
 
-                BackColor =
-                    Color.FromArgb(
-                        30,
-                        42,
-                        62)
-            };
 
+                // ====================================================
+                // USERNAME INPUT PANEL
+                // ====================================================
 
-            SetRoundedCorners(
-                pnlUsernameInput,
-                10
-            );
-
-
-            // ====================================================
-            // USERNAME ICON
-            // ====================================================
-
-            lblUsernameIcon = new Label
-            {
-                Name = "lblUsernameIcon",
-
-                Text = "👤",
-
-                AutoSize = false,
-
-                Size = new Size(
-                    45,
-                    45),
-
-                Location =
-                    new Point(
-                        5,
-                        0),
-
-                TextAlign =
-                    ContentAlignment.MiddleCenter,
-
-                Font = new Font(
-                    "Segoe UI Emoji",
-                    12,
-                    FontStyle.Regular
-                ),
-
-                ForeColor =
-                    Color.FromArgb(
-                        150,
-                        165,
-                        185
-                    ),
-
-                BackColor =
-                    Color.Transparent
-            };
-
-
-            pnlUsernameInput.Controls.Add(
-                lblUsernameIcon
-            );
-
-
-            // ====================================================
-            // USERNAME TEXTBOX
-            // ====================================================
-
-            txtUsername = new TextBox
-            {
-                Name = "txtUsername",
-
-                BorderStyle =
-                    BorderStyle.None,
-
-                Size = new Size(
-                    290,
-                    25),
-
-                Location =
-                    new Point(
-                        52,
-                        11),
-
-                Font = new Font(
-                    "Segoe UI",
-                    10,
-                    FontStyle.Regular
-                ),
-
-                ForeColor =
-                    Color.FromArgb(
-                        100,
-                        110,
-                        130),
-
-                BackColor =
-                    Color.FromArgb(
-                        30,
-                        42,
-                        62),
-
-                Text =
-                    "Enter your staff username"
-            };
-
-
-            // Placeholder behavior
-            txtUsername.GotFocus += (s, e) =>
-            {
-                if (txtUsername.Text ==
-                    "Enter your staff username")
-                {
-                    txtUsername.Text = "";
-
-                    txtUsername.ForeColor =
-                        Color.White;
-                }
-            };
-
-
-            txtUsername.LostFocus += (s, e) =>
-            {
-                if (string.IsNullOrWhiteSpace(
-                    txtUsername.Text))
-                {
-                    txtUsername.Text =
-                        "Enter your staff username";
-
-                    txtUsername.ForeColor =
-                        Color.FromArgb(
-                            100,
-                            110,
-                            130);
-                }
-            };
-
-
-            pnlUsernameInput.Controls.Add(
-                txtUsername
-            );
-
-
-            // ====================================================
-            // PASSWORD INPUT PANEL
-            // ====================================================
-
-            pnlPasswordInput = new Panel
-            {
-                Name = "pnlPasswordInput",
-
-                Size = new Size(
-                    360,
-                    45),
-
-                Location =
-                    new Point(
-                        60,
-                        295),
-
-                BackColor =
-                    Color.FromArgb(
-                        30,
-                        42,
-                        62)
-            };
-
-
-            SetRoundedCorners(
-                pnlPasswordInput,
-                10
-            );
-
-
-            // ====================================================
-            // PASSWORD ICON
-            // ====================================================
-
-            lblPasswordIcon = new Label
-            {
-                Name = "lblPasswordIcon",
-
-                Text = "🔒",
-
-                AutoSize = false,
-
-                Size = new Size(
-                    45,
-                    45),
-
-                Location =
-                    new Point(
-                        5,
-                        0),
-
-                TextAlign =
-                    ContentAlignment.MiddleCenter,
-
-                Font = new Font(
-                    "Segoe UI Emoji",
-                    12,
-                    FontStyle.Regular
-                ),
-
-                ForeColor =
-                    Color.FromArgb(
-                        150,
-                        165,
-                        185
-                    ),
-
-                BackColor =
-                    Color.Transparent
-            };
-
-
-            pnlPasswordInput.Controls.Add(
-                lblPasswordIcon
-            );
-
-
-            // ====================================================
-            // PASSWORD TEXTBOX
-            // ====================================================
-
-            txtPassword = new TextBox
-            {
-                Name = "txtPassword",
-
-                BorderStyle =
-                    BorderStyle.None,
-
-                Size = new Size(
-                    245,
-                    25),
-
-                Location =
-                    new Point(
-                        52,
-                        11),
-
-                Font = new Font(
-                    "Segoe UI",
-                    10,
-                    FontStyle.Regular
-                ),
-
-                // Password text is WHITE.
-                ForeColor =
-                    Color.White,
-
-                BackColor =
-                    Color.FromArgb(
-                        30,
-                        42,
-                        62),
-
-                Text =
-                    "Enter your password",
-
-                UseSystemPasswordChar =
-                    false
-            };
-
-
-            // ====================================================
-            // PASSWORD PLACEHOLDER
-            // ====================================================
-
-            txtPassword.GotFocus += (s, e) =>
-            {
-                if (txtPassword.Text ==
-                    "Enter your password")
-                {
-                    txtPassword.Text = "";
-
-                    txtPassword.ForeColor =
-                        Color.White;
-
-                    txtPassword.UseSystemPasswordChar =
-                        true;
-                }
-            };
-
-
-            txtPassword.LostFocus += (s, e) =>
-            {
-                if (string.IsNullOrWhiteSpace(
-                    txtPassword.Text))
-                {
-                    txtPassword.UseSystemPasswordChar =
-                        false;
-
-                    txtPassword.Text =
-                        "Enter your password";
-
-                    txtPassword.ForeColor =
-                        Color.FromArgb(
-                            100,
-                            110,
-                            130);
-                }
-                else
-                {
-                    // Keep entered password text white.
-                    txtPassword.ForeColor =
-                        Color.White;
-                }
-            };
-
-
-            pnlPasswordInput.Controls.Add(
-                txtPassword
-            );
-
-
-            // ====================================================
-            // PASSWORD VISIBILITY TOGGLE
-            // ====================================================
-
-            Button btnTogglePassword =
-                new Button
+                pnlUsernameInput = new Panel
                 {
                     Name =
-                        "btnTogglePassword",
+                        "pnlUsernameInput",
 
                     Size =
                         new Size(
-                            40,
+                            360,
                             45),
 
                     Location =
                         new Point(
-                            315,
-                            0),
-
-                    Text = "👁",
-
-                    FlatStyle =
-                        FlatStyle.Flat,
+                            60,
+                            210),
 
                     BackColor =
-                        Color.Transparent,
+                        Color.FromArgb(
+                            30,
+                            42,
+                            62)
+                };
+
+
+                SetRoundedCorners(
+                    pnlUsernameInput,
+                    10
+                );
+
+
+                // ====================================================
+                // USERNAME ICON
+                // ====================================================
+
+                lblUsernameIcon = new Label
+                {
+                    Name =
+                        "lblUsernameIcon",
+
+                    Text =
+                        "👤",
+
+                    AutoSize =
+                        false,
+
+                    Size =
+                        new Size(
+                            45,
+                            45),
+
+                    Location =
+                        new Point(
+                            5,
+                            0),
+
+                    TextAlign =
+                        ContentAlignment.MiddleCenter,
+
+                    Font = new Font(
+                        "Segoe UI Emoji",
+                        12,
+                        FontStyle.Regular
+                    ),
 
                     ForeColor =
                         Color.FromArgb(
                             150,
                             165,
-                            185),
+                            185
+                        ),
+
+                    BackColor =
+                        Color.Transparent
+                };
+
+
+                pnlUsernameInput.Controls.Add(
+                    lblUsernameIcon
+                );
+
+
+                // ====================================================
+                // USERNAME TEXTBOX
+                // ====================================================
+
+                txtUsername = new TextBox
+                {
+                    Name =
+                        "txtUsername",
+
+                    BorderStyle =
+                        BorderStyle.None,
+
+                    Size =
+                        new Size(
+                            290,
+                            25),
+
+                    Location =
+                        new Point(
+                            52,
+                            11),
 
                     Font = new Font(
-                        "Segoe UI Emoji",
-                        11,
+                        "Segoe UI",
+                        10,
                         FontStyle.Regular
                     ),
 
-                    Cursor =
-                        Cursors.Hand,
+                    ForeColor =
+                        Color.FromArgb(
+                            100,
+                            110,
+                            130),
 
-                    TabStop = false,
+                    BackColor =
+                        Color.FromArgb(
+                            30,
+                            42,
+                            62),
 
-                    UseVisualStyleBackColor =
+                    Text =
+                        "Enter your staff username"
+                };
+
+
+                txtUsername.GotFocus += (s, e) =>
+                {
+                    if (txtUsername.Text ==
+                        "Enter your staff username")
+                    {
+                        txtUsername.Text =
+                            "";
+
+                        txtUsername.ForeColor =
+                            Color.White;
+                    }
+                };
+
+
+                txtUsername.LostFocus += (s, e) =>
+                {
+                    if (string.IsNullOrWhiteSpace(
+                        txtUsername.Text))
+                    {
+                        txtUsername.Text =
+                            "Enter your staff username";
+
+                        txtUsername.ForeColor =
+                            Color.FromArgb(
+                                100,
+                                110,
+                                130);
+                    }
+                };
+
+
+                pnlUsernameInput.Controls.Add(
+                    txtUsername
+                );
+
+
+                // ====================================================
+                // PASSWORD INPUT PANEL
+                // ====================================================
+
+                pnlPasswordInput = new Panel
+                {
+                    Name =
+                        "pnlPasswordInput",
+
+                    Size =
+                        new Size(
+                            360,
+                            45),
+
+                    Location =
+                        new Point(
+                            60,
+                            295),
+
+                    BackColor =
+                        Color.FromArgb(
+                            30,
+                            42,
+                            62)
+                };
+
+
+                SetRoundedCorners(
+                    pnlPasswordInput,
+                    10
+                );
+
+
+                // ====================================================
+                // PASSWORD ICON
+                // ====================================================
+
+                lblPasswordIcon = new Label
+                {
+                    Name =
+                        "lblPasswordIcon",
+
+                    Text =
+                        "🔒",
+
+                    AutoSize =
+                        false,
+
+                    Size =
+                        new Size(
+                            45,
+                            45),
+
+                    Location =
+                        new Point(
+                            5,
+                            0),
+
+                    TextAlign =
+                        ContentAlignment.MiddleCenter,
+
+                    Font = new Font(
+                        "Segoe UI Emoji",
+                        12,
+                        FontStyle.Regular
+                    ),
+
+                    ForeColor =
+                        Color.FromArgb(
+                            150,
+                            165,
+                            185
+                        ),
+
+                    BackColor =
+                        Color.Transparent
+                };
+
+
+                pnlPasswordInput.Controls.Add(
+                    lblPasswordIcon
+                );
+
+
+                // ====================================================
+                // PASSWORD TEXTBOX
+                // ====================================================
+
+                txtPassword = new TextBox
+                {
+                    Name =
+                        "txtPassword",
+
+                    BorderStyle =
+                        BorderStyle.None,
+
+                    Size =
+                        new Size(
+                            245,
+                            25),
+
+                    Location =
+                        new Point(
+                            52,
+                            11),
+
+                    Font = new Font(
+                        "Segoe UI",
+                        10,
+                        FontStyle.Regular
+                    ),
+
+                    ForeColor =
+                        Color.White,
+
+                    BackColor =
+                        Color.FromArgb(
+                            30,
+                            42,
+                            62),
+
+                    Text =
+                        "Enter your password",
+
+                    UseSystemPasswordChar =
                         false
                 };
 
 
-            btnTogglePassword.FlatAppearance.BorderSize =
-                0;
+                // ====================================================
+                // PASSWORD PLACEHOLDER
+                // ====================================================
 
-            btnTogglePassword.FlatAppearance.MouseOverBackColor =
-                Color.Transparent;
-
-            btnTogglePassword.FlatAppearance.MouseDownBackColor =
-                Color.Transparent;
-
-
-            btnTogglePassword.Click += (s, e) =>
-            {
-                // Don't toggle if placeholder.
-                if (txtPassword.Text ==
-                    "Enter your password")
+                txtPassword.GotFocus += (s, e) =>
                 {
-                    return;
-                }
+                    if (txtPassword.Text ==
+                        "Enter your password")
+                    {
+                        txtPassword.Text =
+                            "";
+
+                        txtPassword.ForeColor =
+                            Color.White;
+
+                        txtPassword.UseSystemPasswordChar =
+                            true;
+                    }
+                };
 
 
-                txtPassword.UseSystemPasswordChar =
-                    !txtPassword.UseSystemPasswordChar;
+                txtPassword.LostFocus += (s, e) =>
+                {
+                    if (string.IsNullOrWhiteSpace(
+                        txtPassword.Text))
+                    {
+                        txtPassword.UseSystemPasswordChar =
+                            false;
+
+                        txtPassword.Text =
+                            "Enter your password";
+
+                        txtPassword.ForeColor =
+                            Color.FromArgb(
+                                100,
+                                110,
+                                130);
+                    }
+                    else
+                    {
+                        txtPassword.ForeColor =
+                            Color.White;
+                    }
+                };
 
 
-                // Keep password text white.
-                txtPassword.ForeColor =
-                    Color.White;
+                pnlPasswordInput.Controls.Add(
+                    txtPassword
+                );
 
 
-                btnTogglePassword.Text =
-                    txtPassword.UseSystemPasswordChar
-                        ? "👁"
-                        : "🙈";
-            };
+                // ====================================================
+                // PASSWORD VISIBILITY TOGGLE
+                // ====================================================
+
+                Button btnTogglePassword =
+                    new Button
+                    {
+                        Name =
+                            "btnTogglePassword",
+
+                        Size =
+                            new Size(
+                                40,
+                                45),
+
+                        Location =
+                            new Point(
+                                315,
+                                0),
+
+                        Text =
+                            "👁",
+
+                        FlatStyle =
+                            FlatStyle.Flat,
+
+                        BackColor =
+                            Color.Transparent,
+
+                        ForeColor =
+                            Color.FromArgb(
+                                150,
+                                165,
+                                185),
+
+                        Font = new Font(
+                            "Segoe UI Emoji",
+                            11,
+                            FontStyle.Regular
+                        ),
+
+                        Cursor =
+                            Cursors.Hand,
+
+                        TabStop =
+                            false,
+
+                        UseVisualStyleBackColor =
+                            false
+                    };
 
 
-            pnlPasswordInput.Controls.Add(
-                btnTogglePassword
-            );
+                btnTogglePassword.FlatAppearance.BorderSize =
+                    0;
 
-            btnTogglePassword.BringToFront();
+                btnTogglePassword.FlatAppearance.MouseOverBackColor =
+                    Color.Transparent;
 
-
-            // ====================================================
-            // ADD INPUT PANELS TO LOGIN CARD
-            // ====================================================
-
-            pnlLoginCard.Controls.Add(
-                pnlUsernameInput
-            );
-
-            pnlLoginCard.Controls.Add(
-                pnlPasswordInput
-            );
+                btnTogglePassword.FlatAppearance.MouseDownBackColor =
+                    Color.Transparent;
 
 
-            // Keep inputs visible.
-            pnlUsernameInput.BringToFront();
-            pnlPasswordInput.BringToFront();
+                btnTogglePassword.Click += (s, e) =>
+                {
+                    if (txtPassword.Text ==
+                        "Enter your password")
+                    {
+                        return;
+                    }
+
+
+                    txtPassword.UseSystemPasswordChar =
+                        !txtPassword.UseSystemPasswordChar;
+
+
+                    txtPassword.ForeColor =
+                        Color.White;
+
+
+                    btnTogglePassword.Text =
+                        txtPassword.UseSystemPasswordChar
+                            ? "👁"
+                            : "🙈";
+                };
+
+
+                pnlPasswordInput.Controls.Add(
+                    btnTogglePassword
+                );
+
+                btnTogglePassword.BringToFront();
+
+
+                // ====================================================
+                // ADD INPUT PANELS TO LOGIN CARD
+                // ====================================================
+
+                pnlLoginCard.Controls.Add(
+                    pnlUsernameInput
+                );
+
+                pnlLoginCard.Controls.Add(
+                    pnlPasswordInput
+                );
+
+
+                pnlUsernameInput.BringToFront();
+                pnlPasswordInput.BringToFront();
+            }
+            finally
+            {
+                // Perform one final layout after all
+                // child controls have been added.
+                pnlLoginCard.ResumeLayout(false);
+            }
         }
 
 
@@ -900,20 +994,16 @@ namespace WeAreCars
                 return;
 
 
-            // Center the login card horizontally.
             int x =
-                (this.ClientSize.Width
+                (ClientSize.Width
                 - pnlLoginCard.Width) / 2;
 
 
-            // Center the login card vertically.
             int y =
-                (this.ClientSize.Height
+                (ClientSize.Height
                 - pnlLoginCard.Height) / 2;
 
 
-            // Prevent negative positions on
-            // very small screens.
             x = Math.Max(
                 0,
                 x);
@@ -929,8 +1019,6 @@ namespace WeAreCars
                     y);
 
 
-            // Keep the Back button in the
-            // same position during resizing.
             if (btnBack != null)
             {
                 btnBack.Location =
@@ -971,7 +1059,6 @@ namespace WeAreCars
                 TextAlign =
                     ContentAlignment.MiddleCenter,
 
-                // Same orange as accent line.
                 ForeColor =
                     Color.FromArgb(
                         255,
@@ -1005,11 +1092,10 @@ namespace WeAreCars
             Control control,
             int radius)
         {
-            GraphicsPath path =
+            using GraphicsPath path =
                 new GraphicsPath();
 
 
-            // Top-left
             path.AddArc(
                 0,
                 0,
@@ -1020,7 +1106,6 @@ namespace WeAreCars
             );
 
 
-            // Top-right
             path.AddArc(
                 control.Width - radius,
                 0,
@@ -1031,7 +1116,6 @@ namespace WeAreCars
             );
 
 
-            // Bottom-right
             path.AddArc(
                 control.Width - radius,
                 control.Height - radius,
@@ -1042,7 +1126,6 @@ namespace WeAreCars
             );
 
 
-            // Bottom-left
             path.AddArc(
                 0,
                 control.Height - radius,
@@ -1073,140 +1156,131 @@ namespace WeAreCars
                 SmoothingMode.AntiAlias;
 
 
-            int radius = 24;
+            int radius =
+                24;
 
 
             // ====================================================
             // CARD BORDER
             // ====================================================
 
-            using (
-                Pen borderPen =
-                    new Pen(
-                        Color.FromArgb(
-                            55,
-                            70,
-                            95
-                        ),
-                        1
-                    )
-            )
-            {
-                using (
-                    GraphicsPath borderPath =
-                        new GraphicsPath()
-                )
-                {
-                    // Top-left
-                    borderPath.AddArc(
-                        0,
-                        0,
-                        radius,
-                        radius,
-                        180,
-                        90
-                    );
+            using Pen borderPen =
+                new Pen(
+                    Color.FromArgb(
+                        55,
+                        70,
+                        95
+                    ),
+                    1
+                );
 
 
-                    // Top-right
-                    borderPath.AddArc(
-                        pnlLoginCard.Width
-                        - radius
-                        - 1,
-                        0,
-                        radius,
-                        radius,
-                        270,
-                        90
-                    );
+            using GraphicsPath borderPath =
+                new GraphicsPath();
 
 
-                    // Bottom-right
-                    borderPath.AddArc(
-                        pnlLoginCard.Width
-                        - radius
-                        - 1,
-                        pnlLoginCard.Height
-                        - radius
-                        - 1,
-                        radius,
-                        radius,
-                        0,
-                        90
-                    );
+            borderPath.AddArc(
+                0,
+                0,
+                radius,
+                radius,
+                180,
+                90
+            );
 
 
-                    // Bottom-left
-                    borderPath.AddArc(
-                        0,
-                        pnlLoginCard.Height
-                        - radius
-                        - 1,
-                        radius,
-                        radius,
-                        90,
-                        90
-                    );
+            borderPath.AddArc(
+                pnlLoginCard.Width
+                - radius
+                - 1,
+                0,
+                radius,
+                radius,
+                270,
+                90
+            );
 
 
-                    borderPath.CloseFigure();
+            borderPath.AddArc(
+                pnlLoginCard.Width
+                - radius
+                - 1,
+                pnlLoginCard.Height
+                - radius
+                - 1,
+                radius,
+                radius,
+                0,
+                90
+            );
 
 
-                    e.Graphics.DrawPath(
-                        borderPen,
-                        borderPath
-                    );
-                }
-            }
+            borderPath.AddArc(
+                0,
+                pnlLoginCard.Height
+                - radius
+                - 1,
+                radius,
+                radius,
+                90,
+                90
+            );
+
+
+            borderPath.CloseFigure();
+
+
+            e.Graphics.DrawPath(
+                borderPen,
+                borderPath
+            );
 
 
             // ====================================================
             // ORANGE ACCENT LINE
             // ====================================================
 
-            using (
-                Pen accentPen =
-                    new Pen(
-                        Color.FromArgb(
-                            255,
-                            107,
-                            53
-                        ),
-                        3
-                    )
-            )
+            using Pen accentPen =
+                new Pen(
+                    Color.FromArgb(
+                        255,
+                        107,
+                        53
+                    ),
+                    3
+                );
+
+
+            if (lblBrand != null)
             {
-                if (lblBrand != null)
-                {
-                    int textWidth =
-                        TextRenderer.MeasureText(
-                            lblBrand.Text,
-                            lblBrand.Font
-                        ).Width;
+                int textWidth =
+                    TextRenderer.MeasureText(
+                        lblBrand.Text,
+                        lblBrand.Font
+                    ).Width;
 
 
-                    int startX =
-                        (pnlLoginCard.Width
-                        - textWidth) / 2;
+                int startX =
+                    (pnlLoginCard.Width
+                    - textWidth) / 2;
 
 
-                    int endX =
-                        startX
-                        + (textWidth / 2);
+                int endX =
+                    startX +
+                    (textWidth / 2);
 
 
-                    int y =
-                        lblBrand.Bottom + 5;
+                int y =
+                    lblBrand.Bottom + 5;
 
 
-                    e.Graphics.DrawLine(
-                        accentPen,
-                        startX,
-                        y,
-                        endX,
-                        y
-                    );
-                }
+                e.Graphics.DrawLine(
+                    accentPen,
+                    startX,
+                    y,
+                    endX,
+                    y
+                );
             }
         }
 
@@ -1285,7 +1359,6 @@ namespace WeAreCars
             };
 
 
-            // Add labels.
             pnlLoginCard.Controls.Add(
                 lblUsername
             );
@@ -1395,13 +1468,10 @@ namespace WeAreCars
             };
 
 
-            // Add title.
             pnlLoginCard.Controls.Add(
                 lblLoginTitle
             );
 
-
-            // Add subtitle.
             pnlLoginCard.Controls.Add(
                 lblLoginSubtitle
             );
@@ -1462,20 +1532,21 @@ namespace WeAreCars
                     Cursors.Hand,
 
                 TextAlign =
-                    ContentAlignment.MiddleCenter
+                    ContentAlignment.MiddleCenter,
+
+                TabStop =
+                    false
             };
 
 
             btnSignIn.FlatAppearance.BorderSize =
                 0;
 
-
             btnSignIn.FlatAppearance.MouseOverBackColor =
                 Color.FromArgb(
                     230,
                     90,
                     40);
-
 
             btnSignIn.FlatAppearance.MouseDownBackColor =
                 Color.FromArgb(
@@ -1497,8 +1568,6 @@ namespace WeAreCars
             btnSignIn.BringToFront();
 
 
-            // Connect the button to the
-            // authentication event.
             btnSignIn.Click +=
                 BtnSignIn_Click;
 

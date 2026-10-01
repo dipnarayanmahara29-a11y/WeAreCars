@@ -1,3 +1,4 @@
+
 using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -12,43 +13,47 @@ namespace WeAreCars
         // VIDEO PLAYBACK
         // ====================================================
 
-        private System.Windows.Forms.Timer videoTimer;
+        private System.Windows.Forms.Timer? videoTimer;
         private bool videoFrozen = false;
 
         // ====================================================
         // SPLASH UI
         // ====================================================
 
-        private Panel overlayPanel;
-        private Form overlayForm;
+        private Panel overlayPanel = null!;
+        private Form overlayForm = null!;
 
-        private Label lblBrand;
-        private Panel brandAccent;
-        private Label lblTitle;
-        private Label lblWelcome;
-        private Label lblDescription;
-        private Label lblInstruction;
-        private Button btnGetStarted;
-        private Label lblFooter;
-        private Button btnClose;
+        private Label lblBrand = null!;
+        private Panel brandAccent = null!;
+        private Label lblTitle = null!;
+        private Label lblWelcome = null!;
+        private Label lblDescription = null!;
+        private Label lblInstruction = null!;
+        private Button btnGetStarted = null!;
+        private Label lblFooter = null!;
+        private Button btnClose = null!;
 
         // ====================================================
         // ANIMATION
         // ====================================================
 
-        private System.Windows.Forms.Timer animationTimer;
-        private System.Windows.Forms.Timer uiStartTimer;
+        private System.Windows.Forms.Timer? animationTimer;
+        private System.Windows.Forms.Timer? uiStartTimer;
 
         private DateTime animationStartTime;
         private DateTime uiStartCheckTime;
 
         private bool animationStarted = false;
 
+        // Prevents splash logic from running while navigating
+        // to another screen.
+        private bool isNavigatingToLogin = false;
+
         // ====================================================
         // HELP
         // ====================================================
 
-        private ToolTip splashToolTip;
+        private ToolTip splashToolTip = null!;
 
         // ====================================================
         // CONSTANTS
@@ -97,7 +102,9 @@ namespace WeAreCars
         /// The video plays once and is frozen shortly before
         /// its actual end to prevent an end-of-video transition.
         /// </summary>
-        private void WelcomeScreen_Load(object sender, EventArgs e)
+        private void WelcomeScreen_Load(
+            object? sender,
+            EventArgs e)
         {
             string videoPath = Path.Combine(
                 AppContext.BaseDirectory,
@@ -128,6 +135,7 @@ namespace WeAreCars
 
             videoFrozen = false;
             animationStarted = false;
+            isNavigatingToLogin = false;
 
             // ------------------------------------------------
             // Load and play video.
@@ -136,7 +144,10 @@ namespace WeAreCars
             axWindowsMediaPlayer.URL = videoPath;
 
             axWindowsMediaPlayer.settings.autoStart = true;
-            axWindowsMediaPlayer.settings.setMode("loop", false);
+            axWindowsMediaPlayer.settings.setMode(
+                "loop",
+                false
+            );
 
             axWindowsMediaPlayer.Ctlcontrols.play();
 
@@ -144,10 +155,14 @@ namespace WeAreCars
             // Start video end monitoring.
             // ------------------------------------------------
 
-            videoTimer = new System.Windows.Forms.Timer
-            {
-                Interval = 15
-            };
+            videoTimer?.Stop();
+            videoTimer?.Dispose();
+
+            videoTimer =
+                new System.Windows.Forms.Timer
+                {
+                    Interval = 15
+                };
 
             videoTimer.Tick += VideoTimer_Tick;
             videoTimer.Start();
@@ -159,10 +174,14 @@ namespace WeAreCars
 
             uiStartCheckTime = DateTime.Now;
 
-            uiStartTimer = new System.Windows.Forms.Timer
-            {
-                Interval = 15
-            };
+            uiStartTimer?.Stop();
+            uiStartTimer?.Dispose();
+
+            uiStartTimer =
+                new System.Windows.Forms.Timer
+                {
+                    Interval = 15
+                };
 
             uiStartTimer.Tick += UiStartTimer_Tick;
             uiStartTimer.Start();
@@ -173,8 +192,13 @@ namespace WeAreCars
         /// required playback position before starting the UI
         /// entrance animation.
         /// </summary>
-        private void UiStartTimer_Tick(object sender, EventArgs e)
+        private void UiStartTimer_Tick(
+            object? sender,
+            EventArgs e)
         {
+            if (isNavigatingToLogin)
+                return;
+
             if (animationStarted)
                 return;
 
@@ -196,14 +220,11 @@ namespace WeAreCars
 
             // ------------------------------------------------
             // Safety fallback.
-            //
-            // This prevents the interface from remaining hidden
-            // forever if WMP does not immediately report its
-            // playback position.
             // ------------------------------------------------
 
             double elapsed =
-                (DateTime.Now - uiStartCheckTime).TotalMilliseconds;
+                (DateTime.Now - uiStartCheckTime)
+                .TotalMilliseconds;
 
             if (elapsed >= UiStartFallbackMilliseconds)
             {
@@ -216,6 +237,9 @@ namespace WeAreCars
         /// </summary>
         private void BeginSplashAnimation()
         {
+            if (isNavigatingToLogin)
+                return;
+
             if (animationStarted)
                 return;
 
@@ -232,8 +256,13 @@ namespace WeAreCars
         /// Monitors the video position and freezes it shortly
         /// before the end of playback.
         /// </summary>
-        private void VideoTimer_Tick(object sender, EventArgs e)
+        private void VideoTimer_Tick(
+            object? sender,
+            EventArgs e)
         {
+            if (isNavigatingToLogin)
+                return;
+
             if (videoFrozen)
                 return;
 
@@ -266,6 +295,9 @@ namespace WeAreCars
         /// </summary>
         private void FreezeVideo()
         {
+            if (isNavigatingToLogin)
+                return;
+
             if (videoFrozen)
                 return;
 
@@ -275,13 +307,12 @@ namespace WeAreCars
 
             axWindowsMediaPlayer.Ctlcontrols.pause();
 
-            // Ensure the overlay is visible and above the video so the close button can receive input.
-            if (overlayForm != null)
+            // Ensure the overlay is visible and above the video.
+            if (overlayForm != null &&
+                !overlayForm.IsDisposed)
             {
                 try
                 {
-                    // Only call Show if the overlay is not already visible to avoid
-                    // InvalidOperationException on some systems when re-showing.
                     if (!overlayForm.Visible)
                         overlayForm.Show(this);
 
@@ -290,7 +321,7 @@ namespace WeAreCars
                 }
                 catch
                 {
-                    // Ignore any activation errors on older systems.
+                    // Ignore overlay activation errors.
                 }
             }
 
@@ -309,10 +340,6 @@ namespace WeAreCars
         /// <summary>
         /// Creates the transparent UI form positioned over
         /// the video background.
-        ///
-        /// The transparent background is created using a
-        /// colour key. No separate dark overlay is used, so
-        /// the video remains visible across the entire screen.
         /// </summary>
         private void CreateOverlayForm()
         {
@@ -328,8 +355,10 @@ namespace WeAreCars
 
                 // UI itself remains fully visible.
                 Opacity = 1.0,
-                // Ensure the overlay stays above the media player so its child controls receive input.
-                TopMost = true,
+
+                // The overlay belongs to the WelcomeScreen,
+                // so it does not need to be a global TopMost window.
+                TopMost = false,
 
                 AutoScaleMode = AutoScaleMode.None,
 
@@ -375,7 +404,9 @@ namespace WeAreCars
         /// Keeps the overlay and close button aligned with the
         /// main application window when it moves or resizes.
         /// </summary>
-        private void MainForm_MoveOrResize(object sender, EventArgs e)
+        private void MainForm_MoveOrResize(
+            object? sender,
+            EventArgs e)
         {
             PositionOverlayForm();
         }
@@ -391,341 +422,430 @@ namespace WeAreCars
         /// </summary>
         private void CreateSplashUI()
         {
-            // ------------------------------------------------
-            // UI CONTAINER
-            // ------------------------------------------------
+            overlayForm.SuspendLayout();
 
-            overlayPanel = new Panel
+            try
             {
-                BackColor = Color.Transparent,
-                Location = new Point(0, 0),
-                Size = overlayForm.ClientSize,
-                Dock = DockStyle.Fill
-            };
-
-            overlayForm.Controls.Add(overlayPanel);
-
-            // ------------------------------------------------
-            // BRAND
-            // ------------------------------------------------
-
-            lblBrand = new Label
-            {
-                AutoSize = true,
-                Text = "WEARECARS",
-
-                ForeColor = Color.White,
-                BackColor = Color.Transparent,
-
-                Font = new Font(
-                    "Segoe UI",
-                    19,
-                    FontStyle.Bold
-                ),
-
-                Location = new Point(48, 38)
-            };
-
-            overlayPanel.Controls.Add(lblBrand);
-
-            // ------------------------------------------------
-            // BRAND ACCENT
-            // ------------------------------------------------
-
-            brandAccent = new Panel
-            {
-                BackColor = Color.FromArgb(249, 115, 22),
-
-                Size = new Size(36, 3),
-
-                Location = new Point(49, 73)
-            };
-
-            overlayPanel.Controls.Add(brandAccent);
-
-            // ------------------------------------------------
-            // MAIN TITLE
-            // ------------------------------------------------
-
-            lblTitle = new Label
-            {
-                AutoSize = false,
-
-                Text =
-                    "VEHICLE RENTAL\r\n" +
-                    "MANAGEMENT SYSTEM",
-
-                ForeColor = Color.White,
-                BackColor = Color.Transparent,
-
-                Font = new Font(
-                    "Segoe UI",
-                    33,
-                    FontStyle.Bold
-                ),
-
-                Location = new Point(48, 190),
-
-                Size = new Size(600, 120),
-
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-
-            overlayPanel.Controls.Add(lblTitle);
-
-            // ------------------------------------------------
-            // WELCOME MESSAGE
-            // ------------------------------------------------
-
-            lblWelcome = new Label
-            {
-                AutoSize = true,
-
-                Text = "Welcome to WeAreCars",
-
-                ForeColor = Color.FromArgb(249, 115, 22),
-                BackColor = Color.Transparent,
-
-                Font = new Font(
-                    "Segoe UI",
-                    13,
-                    FontStyle.Bold
-                ),
-
-                Location = new Point(50, 335)
-            };
-
-            overlayPanel.Controls.Add(lblWelcome);
-
-            // ------------------------------------------------
-            // DESCRIPTION
-            // ------------------------------------------------
-
-            lblDescription = new Label
-            {
-                AutoSize = false,
-
-                Text =
-                    "Manage vehicles, create rental bookings,\r\n" +
-                    "and review current rentals.",
-
-                ForeColor = Color.FromArgb(226, 232, 240),
-                BackColor = Color.Transparent,
-
-                Font = new Font(
-                    "Segoe UI",
-                    10.5f,
-                    FontStyle.Regular
-                ),
-
-                Location = new Point(50, 375),
-
-                Size = new Size(480, 55),
-
-                TextAlign = ContentAlignment.TopLeft
-            };
-
-            overlayPanel.Controls.Add(lblDescription);
-
-            // ------------------------------------------------
-            // INSTRUCTION
-            // ------------------------------------------------
-
-            lblInstruction = new Label
-            {
-                AutoSize = false,
-
-                Text =
-                    "Select Get Started to sign in and access\r\n" +
-                    "the staff management system.",
-
-                ForeColor = Color.FromArgb(148, 163, 184),
-                BackColor = Color.Transparent,
-
-                Font = new Font(
-                    "Segoe UI",
-                    9.5f,
-                    FontStyle.Regular
-                ),
-
-                Location = new Point(50, 445),
-
-                Size = new Size(480, 50),
-
-                TextAlign = ContentAlignment.TopLeft
-            };
-
-            overlayPanel.Controls.Add(lblInstruction);
-
-            // ------------------------------------------------
-            // GET STARTED BUTTON
-            // ------------------------------------------------
-
-            btnGetStarted = new Button
-            {
-                Text = "GET STARTED   →",
-
-                Size = new Size(215, 54),
-
-                Location = new Point(48, 520),
-
-                BackColor = Color.FromArgb(249, 115, 22),
-                ForeColor = Color.White,
-
-                Font = new Font(
-                    "Segoe UI",
-                    10.5f,
-                    FontStyle.Bold
-                ),
-
-                FlatStyle = FlatStyle.Flat,
-
-                Cursor = Cursors.Hand,
-
-                TabStop = false,
-
-                TextAlign = ContentAlignment.MiddleCenter,
-
-                UseVisualStyleBackColor = false
-            };
-
-            btnGetStarted.FlatAppearance.BorderSize = 0;
-
-            btnGetStarted.FlatAppearance.MouseOverBackColor =
-                Color.FromArgb(234, 88, 12);
-
-            btnGetStarted.FlatAppearance.MouseDownBackColor =
-                Color.FromArgb(194, 65, 12);
-
-            btnGetStarted.Click += BtnGetStarted_Click;
-
-            // Create rounded corners.
-            using (GraphicsPath buttonPath =
-                   CreateRoundedRectanglePath(
-                       new Rectangle(
-                           0,
-                           0,
-                           btnGetStarted.Width,
-                           btnGetStarted.Height
-                       ),
-                       10))
-            {
-                btnGetStarted.Region =
-                    new Region(buttonPath);
-            }
-
-            overlayPanel.Controls.Add(btnGetStarted);
-
-            // ------------------------------------------------
-            // FOOTER
-            // ------------------------------------------------
-
-            lblFooter = new Label
-            {
-                AutoSize = true,
-
-                Text = "Staff Application  •  Version 1.0",
-
-                ForeColor = Color.FromArgb(148, 163, 184),
-                BackColor = Color.Transparent,
-
-                Font = new Font(
-                    "Segoe UI",
-                    8.5f,
-                    FontStyle.Regular
-                ),
-
-                Location =
-                    new Point(
-                        50,
-                        Math.Max(
-                            0,
-                            ClientSize.Height - 42
-                        )
+                // ------------------------------------------------
+                // UI CONTAINER
+                // ------------------------------------------------
+
+                overlayPanel = new Panel
+                {
+                    BackColor = Color.Transparent,
+                    Location = new Point(0, 0),
+                    Size = overlayForm.ClientSize,
+                    Dock = DockStyle.Fill
+                };
+
+                overlayForm.Controls.Add(overlayPanel);
+
+                // ------------------------------------------------
+                // BRAND
+                // ------------------------------------------------
+
+                lblBrand = new Label
+                {
+                    AutoSize = true,
+                    Text = "WEARECARS",
+
+                    ForeColor = Color.White,
+                    BackColor = Color.Transparent,
+
+                    Font = new Font(
+                        "Segoe UI",
+                        19,
+                        FontStyle.Bold
                     ),
 
-                Anchor =
-                    AnchorStyles.Bottom |
-                    AnchorStyles.Left
-            };
+                    Location =
+                        new Point(48, 38)
+                };
 
-            overlayPanel.Controls.Add(lblFooter);
+                overlayPanel.Controls.Add(lblBrand);
 
-            // ------------------------------------------------
-            // CLOSE BUTTON
-            // ------------------------------------------------
+                // ------------------------------------------------
+                // BRAND ACCENT
+                // ------------------------------------------------
 
-            // Larger, bolder close button that is easier to click.
-            btnClose = new Button
+                brandAccent = new Panel
+                {
+                    BackColor =
+                        Color.FromArgb(
+                            249,
+                            115,
+                            22),
+
+                    Size = new Size(36, 3),
+
+                    Location =
+                        new Point(49, 73)
+                };
+
+                overlayPanel.Controls.Add(brandAccent);
+
+                // ------------------------------------------------
+                // MAIN TITLE
+                // ------------------------------------------------
+
+                lblTitle = new Label
+                {
+                    AutoSize = false,
+
+                    Text =
+                        "VEHICLE RENTAL\r\n" +
+                        "MANAGEMENT SYSTEM",
+
+                    ForeColor = Color.White,
+                    BackColor = Color.Transparent,
+
+                    Font = new Font(
+                        "Segoe UI",
+                        33,
+                        FontStyle.Bold
+                    ),
+
+                    Location =
+                        new Point(48, 190),
+
+                    Size =
+                        new Size(600, 120),
+
+                    TextAlign =
+                        ContentAlignment.MiddleLeft
+                };
+
+                overlayPanel.Controls.Add(lblTitle);
+
+                // ------------------------------------------------
+                // WELCOME MESSAGE
+                // ------------------------------------------------
+
+                lblWelcome = new Label
+                {
+                    AutoSize = true,
+
+                    Text =
+                        "Welcome to WeAreCars",
+
+                    ForeColor =
+                        Color.FromArgb(
+                            249,
+                            115,
+                            22),
+
+                    BackColor =
+                        Color.Transparent,
+
+                    Font = new Font(
+                        "Segoe UI",
+                        13,
+                        FontStyle.Bold
+                    ),
+
+                    Location =
+                        new Point(50, 335)
+                };
+
+                overlayPanel.Controls.Add(lblWelcome);
+
+                // ------------------------------------------------
+                // DESCRIPTION
+                // ------------------------------------------------
+
+                lblDescription = new Label
+                {
+                    AutoSize = false,
+
+                    Text =
+                        "Manage vehicles, create rental bookings,\r\n" +
+                        "and review current rentals.",
+
+                    ForeColor =
+                        Color.FromArgb(
+                            226,
+                            232,
+                            240),
+
+                    BackColor =
+                        Color.Transparent,
+
+                    Font = new Font(
+                        "Segoe UI",
+                        10.5f,
+                        FontStyle.Regular
+                    ),
+
+                    Location =
+                        new Point(50, 375),
+
+                    Size =
+                        new Size(480, 55),
+
+                    TextAlign =
+                        ContentAlignment.TopLeft
+                };
+
+                overlayPanel.Controls.Add(lblDescription);
+
+                // ------------------------------------------------
+                // INSTRUCTION
+                // ------------------------------------------------
+
+                lblInstruction = new Label
+                {
+                    AutoSize = false,
+
+                    Text =
+                        "Select Get Started to sign in and access\r\n" +
+                        "the staff management system.",
+
+                    ForeColor =
+                        Color.FromArgb(
+                            148,
+                            163,
+                            184),
+
+                    BackColor =
+                        Color.Transparent,
+
+                    Font = new Font(
+                        "Segoe UI",
+                        9.5f,
+                        FontStyle.Regular
+                    ),
+
+                    Location =
+                        new Point(50, 445),
+
+                    Size =
+                        new Size(480, 50),
+
+                    TextAlign =
+                        ContentAlignment.TopLeft
+                };
+
+                overlayPanel.Controls.Add(lblInstruction);
+
+                // ------------------------------------------------
+                // GET STARTED BUTTON
+                // ------------------------------------------------
+
+                btnGetStarted = new Button
+                {
+                    Text =
+                        "GET STARTED   →",
+
+                    Size =
+                        new Size(215, 54),
+
+                    Location =
+                        new Point(48, 520),
+
+                    BackColor =
+                        Color.FromArgb(
+                            249,
+                            115,
+                            22),
+
+                    ForeColor = Color.White,
+
+                    Font = new Font(
+                        "Segoe UI",
+                        10.5f,
+                        FontStyle.Bold
+                    ),
+
+                    FlatStyle =
+                        FlatStyle.Flat,
+
+                    Cursor =
+                        Cursors.Hand,
+
+                    TabStop = false,
+
+                    TextAlign =
+                        ContentAlignment.MiddleCenter,
+
+                    UseVisualStyleBackColor =
+                        false
+                };
+
+                btnGetStarted.FlatAppearance.BorderSize =
+                    0;
+
+                btnGetStarted.FlatAppearance.MouseOverBackColor =
+                    Color.FromArgb(
+                        234,
+                        88,
+                        12);
+
+                btnGetStarted.FlatAppearance.MouseDownBackColor =
+                    Color.FromArgb(
+                        194,
+                        65,
+                        12);
+
+                btnGetStarted.Click +=
+                    BtnGetStarted_Click;
+
+                // Create rounded corners.
+                using (
+                    GraphicsPath buttonPath =
+                        CreateRoundedRectanglePath(
+                            new Rectangle(
+                                0,
+                                0,
+                                btnGetStarted.Width,
+                                btnGetStarted.Height
+                            ),
+                            10))
+                {
+                    btnGetStarted.Region =
+                        new Region(buttonPath);
+                }
+
+                overlayPanel.Controls.Add(
+                    btnGetStarted
+                );
+
+                // ------------------------------------------------
+                // FOOTER
+                // ------------------------------------------------
+
+                lblFooter = new Label
+                {
+                    AutoSize = true,
+
+                    Text =
+                        "Staff Application  •  Version 1.0",
+
+                    ForeColor =
+                        Color.FromArgb(
+                            148,
+                            163,
+                            184),
+
+                    BackColor =
+                        Color.Transparent,
+
+                    Font = new Font(
+                        "Segoe UI",
+                        8.5f,
+                        FontStyle.Regular
+                    ),
+
+                    Location =
+                        new Point(
+                            50,
+                            Math.Max(
+                                0,
+                                ClientSize.Height - 42
+                            )
+                        ),
+
+                    Anchor =
+                        AnchorStyles.Bottom |
+                        AnchorStyles.Left
+                };
+
+                overlayPanel.Controls.Add(lblFooter);
+
+                // ------------------------------------------------
+                // CLOSE BUTTON
+                // ------------------------------------------------
+
+                btnClose = new Button
+                {
+                    Text = "×",
+
+                    Size =
+                        new Size(
+                            56,
+                            56),
+
+                    BackColor =
+                        Color.Transparent,
+
+                    ForeColor =
+                        Color.White,
+
+                    FlatStyle =
+                        FlatStyle.Flat,
+
+                    Font = new Font(
+                        "Segoe UI",
+                        18,
+                        FontStyle.Bold
+                    ),
+
+                    Cursor =
+                        Cursors.Hand,
+
+                    TabStop = false,
+
+                    TextAlign =
+                        ContentAlignment.MiddleCenter,
+
+                    Anchor =
+                        AnchorStyles.Top |
+                        AnchorStyles.Right,
+
+                    Visible = false
+                };
+
+                btnClose.FlatAppearance.BorderSize =
+                    0;
+
+                btnClose.FlatAppearance.MouseOverBackColor =
+                    Color.Transparent;
+
+                btnClose.FlatAppearance.MouseDownBackColor =
+                    Color.Transparent;
+
+                btnClose.MouseEnter +=
+                    BtnClose_MouseEnter;
+
+                btnClose.MouseLeave +=
+                    BtnClose_MouseLeave;
+
+                btnClose.Click +=
+                    BtnClose_Click;
+
+                overlayForm.Controls.Add(
+                    btnClose
+                );
+
+                btnClose.BringToFront();
+
+                PositionCloseButton();
+
+                // ------------------------------------------------
+                // TOOLTIP / HELP
+                // ------------------------------------------------
+
+                splashToolTip = new ToolTip
+                {
+                    AutoPopDelay = 5000,
+                    InitialDelay = 400,
+                    ReshowDelay = 200,
+                    ShowAlways = true
+                };
+
+                splashToolTip.SetToolTip(
+                    btnGetStarted,
+                    "Continue to staff login"
+                );
+
+                splashToolTip.SetToolTip(
+                    btnClose,
+                    "Close WeAreCars"
+                );
+            }
+            finally
             {
-                Text = "×",
-
-                Size = new Size(56, 56),
-
-                BackColor = Color.Transparent, // keep the button background transparent over the overlay
-                ForeColor = Color.White,
-
-                FlatStyle = FlatStyle.Flat,
-
-                Font = new Font(
-                    "Segoe UI",
-                    18,
-                    FontStyle.Bold
-                ),
-
-                Cursor = Cursors.Hand,
-
-                TabStop = false,
-
-                TextAlign = ContentAlignment.MiddleCenter,
-
-                Anchor =
-                    AnchorStyles.Top |
-                    AnchorStyles.Right,
-
-                Visible = false
-            };
-
-            btnClose.FlatAppearance.BorderSize = 0;
-
-            // Keep the button fully transparent on hover and press so the
-            // underlying video/overlay remains visible.
-            btnClose.FlatAppearance.MouseOverBackColor = Color.Transparent;
-            btnClose.FlatAppearance.MouseDownBackColor = Color.Transparent;
-
-            // Optionally show a subtle outline or glyph highlight via MouseEnter/Leave
-            // if you want feedback without changing the background. Handlers are optional.
-            btnClose.MouseEnter += BtnClose_MouseEnter;
-            btnClose.MouseLeave += BtnClose_MouseLeave;
-            btnClose.Click += BtnClose_Click;
-
-            overlayForm.Controls.Add(btnClose);
-
-            btnClose.BringToFront();
-
-            PositionCloseButton();
-
-            // ------------------------------------------------
-            // TOOLTIP / HELP
-            // ------------------------------------------------
-
-            splashToolTip = new ToolTip
-            {
-                AutoPopDelay = 5000,
-                InitialDelay = 400,
-                ReshowDelay = 200,
-                ShowAlways = true
-            };
-
-            splashToolTip.SetToolTip(
-                btnGetStarted,
-                "Continue to staff login"
-            );
-
-            splashToolTip.SetToolTip(
-                btnClose,
-                "Close WeAreCars"
-            );
+                overlayForm.ResumeLayout(false);
+            }
         }
 
         /// <summary>
@@ -761,6 +881,9 @@ namespace WeAreCars
         /// </summary>
         private void StartEntranceAnimation()
         {
+            if (isNavigatingToLogin)
+                return;
+
             if (overlayForm == null ||
                 overlayForm.IsDisposed)
             {
@@ -775,20 +898,45 @@ namespace WeAreCars
             // Prepare each element outside the left side.
             // ------------------------------------------------
 
-            PrepareAnimation(lblBrand, -140);
-            PrepareAnimation(brandAccent, -80);
+            PrepareAnimation(
+                lblBrand,
+                -140
+            );
 
-            PrepareAnimation(lblTitle, -180);
+            PrepareAnimation(
+                brandAccent,
+                -80
+            );
 
-            PrepareAnimation(lblWelcome, -140);
+            PrepareAnimation(
+                lblTitle,
+                -180
+            );
 
-            PrepareAnimation(lblDescription, -120);
+            PrepareAnimation(
+                lblWelcome,
+                -140
+            );
 
-            PrepareAnimation(lblInstruction, -100);
+            PrepareAnimation(
+                lblDescription,
+                -120
+            );
 
-            PrepareAnimation(btnGetStarted, -140);
+            PrepareAnimation(
+                lblInstruction,
+                -100
+            );
 
-            PrepareAnimation(lblFooter, -100);
+            PrepareAnimation(
+                btnGetStarted,
+                -140
+            );
+
+            PrepareAnimation(
+                lblFooter,
+                -100
+            );
 
             // Close button is available immediately.
             btnClose.Visible = true;
@@ -801,12 +949,18 @@ namespace WeAreCars
             // Start animation timer.
             // ------------------------------------------------
 
-            animationTimer = new System.Windows.Forms.Timer
-            {
-                Interval = 15
-            };
+            animationTimer?.Stop();
+            animationTimer?.Dispose();
 
-            animationTimer.Tick += AnimationTimer_Tick;
+            animationTimer =
+                new System.Windows.Forms.Timer
+                {
+                    Interval = 15
+                };
+
+            animationTimer.Tick +=
+                AnimationTimer_Tick;
+
             animationTimer.Start();
         }
 
@@ -826,8 +980,13 @@ namespace WeAreCars
         /// Updates all splash elements during the entrance
         /// animation using individual delays and durations.
         /// </summary>
-        private void AnimationTimer_Tick(object sender, EventArgs e)
+        private void AnimationTimer_Tick(
+            object? sender,
+            EventArgs e)
         {
+            if (isNavigatingToLogin)
+                return;
+
             double elapsed =
                 (DateTime.Now - animationStartTime)
                 .TotalMilliseconds;
@@ -941,8 +1100,8 @@ namespace WeAreCars
             {
                 SetAnimationEndState();
 
-                animationTimer.Stop();
-                animationTimer.Dispose();
+                animationTimer?.Stop();
+                animationTimer?.Dispose();
                 animationTimer = null;
             }
         }
@@ -961,7 +1120,8 @@ namespace WeAreCars
             int duration)
         {
             double progress =
-                (elapsed - delay) / duration;
+                (elapsed - delay) /
+                duration;
 
             // Animation has not started yet.
             if (progress <= 0)
@@ -981,10 +1141,7 @@ namespace WeAreCars
             }
 
             // ------------------------------------------------
-            // Ease-out cubic
-            //
-            // The control moves quickly at first and then
-            // slows down smoothly as it reaches its destination.
+            // Ease-out cubic.
             // ------------------------------------------------
 
             double easedProgress =
@@ -1040,76 +1197,145 @@ namespace WeAreCars
         // ====================================================
 
         /// <summary>
-        /// Temporary navigation handler.
-        /// This will later open the required staff login page.
+        /// Navigates from the WelcomeScreen to the LoginForm.
         /// </summary>
         private void BtnGetStarted_Click(
-            object sender,
+            object? sender,
             EventArgs e)
         {
+            // Prevent double-clicks from creating
+            // multiple LoginForm instances.
+            if (isNavigatingToLogin)
+                return;
 
-            // Ensure the transparent overlay is hidden/cleaned up before
-            // navigating away so it does not remain visible above the
-            // newly-opened LoginForm.
+            isNavigatingToLogin = true;
+
+            btnGetStarted.Enabled = false;
+
+            // ------------------------------------------------
+            // Stop splash timers immediately.
+            // ------------------------------------------------
+
+            uiStartTimer?.Stop();
+            animationTimer?.Stop();
+            videoTimer?.Stop();
+
+            // ------------------------------------------------
+            // Freeze the current visual state of the
+            // WelcomeScreen so it is stable while the next
+            // form is being prepared.
+            // ------------------------------------------------
+
+            if (!videoFrozen)
+            {
+                axWindowsMediaPlayer.Ctlcontrols.pause();
+                videoFrozen = true;
+            }
+
+            SetAnimationEndState();
+
+            // ------------------------------------------------
+            // Hide the transparent overlay.
+            // ------------------------------------------------
+
             try
             {
-                if (overlayForm != null && !overlayForm.IsDisposed)
+                if (overlayForm != null &&
+                    !overlayForm.IsDisposed)
                 {
                     overlayForm.Hide();
                 }
             }
             catch
             {
-                // Ignore any overlay cleanup errors; proceed with navigation.
+                // Continue with navigation.
             }
 
-            // Create the LoginForm.
+            // ------------------------------------------------
+            // Create the LoginForm while the WelcomeScreen
+            // is still visible underneath.
+            // ------------------------------------------------
+
             LoginForm targetForm =
                 new LoginForm();
 
-            // Hide the WelcomeScreen only after the
-            // LoginForm has actually been shown.
-            targetForm.Shown += (s, args) =>
-            {
-                this.Hide();
-            };
+            // Re-enable the button if LoginForm is closed
+            // for any reason.
+            targetForm.FormClosed +=
+                (s, args) =>
+                {
+                    if (!IsDisposed)
+                    {
+                        btnGetStarted.Enabled = true;
+                    }
+                };
 
-            // Show the LoginForm.
+            // ------------------------------------------------
+            // Show the LoginForm and force an immediate update
+            // before hiding the WelcomeScreen.
+            // ------------------------------------------------
+
             targetForm.Show();
+
+            targetForm.Update();
 
             targetForm.BringToFront();
             targetForm.Activate();
+
+            // The LoginForm has now been shown and explicitly
+            // asked to paint before the WelcomeScreen disappears.
+            Hide();
         }
 
         /// <summary>
         /// Closes the WeAreCars application.
         /// </summary>
         private void BtnClose_Click(
-            object sender,
+            object? sender,
             EventArgs e)
         {
-            // Close only the welcome screen and its overlay so the application can continue.
+            isNavigatingToLogin = false;
+
             try
             {
-                // If overlayForm is present, close it first to avoid orphan windows.
-                if (overlayForm != null && !overlayForm.IsDisposed)
+                if (overlayForm != null &&
+                    !overlayForm.IsDisposed)
                 {
                     overlayForm.Close();
                 }
             }
             catch
             {
-                // Ignore any errors while closing the overlay.
+                // Ignore overlay cleanup errors.
             }
 
-            // Close this welcome form; do not call Application.Exit to avoid terminating the whole process.
-            this.Close();
+            Close();
         }
 
+        /// <summary>
+        /// Returns to the existing WelcomeScreen instance
+        /// after the LoginForm has been closed.
+        /// </summary>
         public void ReturnFromLogin()
         {
-            this.Show();
+            isNavigatingToLogin = false;
 
+            // Ensure the splash UI is in a stable final state.
+            SetAnimationEndState();
+
+            // Re-enable navigation.
+            if (btnGetStarted != null &&
+                !btnGetStarted.IsDisposed)
+            {
+                btnGetStarted.Enabled = true;
+            }
+
+            // Show the existing WelcomeScreen first.
+            Show();
+            BringToFront();
+            Activate();
+
+            // Then show the existing overlay.
             if (overlayForm != null &&
                 !overlayForm.IsDisposed)
             {
@@ -1117,27 +1343,27 @@ namespace WeAreCars
                 overlayForm.BringToFront();
                 overlayForm.Activate();
             }
-
-            this.BringToFront();
-            this.Activate();
         }
 
         /// <summary>
         /// Highlights the close button when the mouse enters.
         /// </summary>
         private void BtnClose_MouseEnter(
-            object sender,
+            object? sender,
             EventArgs e)
         {
             btnClose.ForeColor =
-                Color.FromArgb(249, 115, 22);
+                Color.FromArgb(
+                    249,
+                    115,
+                    22);
         }
 
         /// <summary>
         /// Restores the normal close-button colour.
         /// </summary>
         private void BtnClose_MouseLeave(
-            object sender,
+            object? sender,
             EventArgs e)
         {
             btnClose.ForeColor =
@@ -1156,7 +1382,8 @@ namespace WeAreCars
             Rectangle bounds,
             int radius)
         {
-            int diameter = radius * 2;
+            int diameter =
+                radius * 2;
 
             GraphicsPath path =
                 new GraphicsPath();
@@ -1219,6 +1446,8 @@ namespace WeAreCars
         protected override void OnFormClosing(
             FormClosingEventArgs e)
         {
+            isNavigatingToLogin = false;
+
             uiStartTimer?.Stop();
             uiStartTimer?.Dispose();
             uiStartTimer = null;
@@ -1226,6 +1455,8 @@ namespace WeAreCars
             animationTimer?.Stop();
             animationTimer?.Dispose();
             animationTimer = null;
+
+            videoTimer?.Stop();
 
             if (overlayForm != null &&
                 !overlayForm.IsDisposed)
@@ -1248,7 +1479,7 @@ namespace WeAreCars
             videoTimer = null;
 
             splashToolTip?.Dispose();
-            splashToolTip = null;
+            splashToolTip = null!;
 
             if (overlayForm != null &&
                 !overlayForm.IsDisposed)
@@ -1262,9 +1493,10 @@ namespace WeAreCars
             base.OnFormClosed(e);
         }
 
-        private void picEndFrame_Click(object sender, EventArgs e)
+        private void picEndFrame_Click(
+            object? sender,
+            EventArgs e)
         {
-
         }
     }
 }
